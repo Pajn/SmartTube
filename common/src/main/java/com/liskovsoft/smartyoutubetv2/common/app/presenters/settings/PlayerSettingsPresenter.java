@@ -620,6 +620,11 @@ public class PlayerSettingsPresenter extends BasePresenter<Void> {
                 option -> mPlayerTweaksData.setSWDecoderForced(option.isSelected()),
                 mPlayerTweaksData.isSWDecoderForced()));
 
+        options.add(UiOptionItem.from(getContext().getString(R.string.smooth_video_start),
+                getContext().getString(R.string.smooth_video_start_desc),
+                option -> mPlayerTweaksData.setSmoothVideoStartEnabled(option.isSelected()),
+                mPlayerTweaksData.isSmoothVideoStartEnabled()));
+
         options.add(UiOptionItem.from(getContext().getString(R.string.sony_frame_drop_fix),
                 getContext().getString(R.string.sony_frame_drop_fix_desc),
                 option -> mPlayerTweaksData.setSonyFrameDropFixEnabled(option.isSelected()),

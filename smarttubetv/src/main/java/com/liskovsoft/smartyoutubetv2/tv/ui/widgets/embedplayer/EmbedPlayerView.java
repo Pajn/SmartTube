@@ -7,7 +7,6 @@ import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.android.exoplayer2.ui.PlayerView;
@@ -549,7 +548,7 @@ public class EmbedPlayerView extends PlayerView implements PlaybackView {
         }
 
         // Use default or pass your bandwidthMeter here: bandwidthMeter = new DefaultBandwidthMeter.Builder(getContext()).build()
-        DefaultTrackSelector trackSelector = new RestoreTrackSelector(new AdaptiveTrackSelection.Factory());
+        DefaultTrackSelector trackSelector = new RestoreTrackSelector(ExoPlayerInitializer.createTrackSelectionFactory(getContext()));
         mExoPlayerController.setTrackSelector(trackSelector);
 
         DefaultRenderersFactory renderersFactory = new CustomOverridesRenderersFactory(getContext());

@@ -584,6 +584,8 @@
     <string name="disable_stream_buffer_desc">Fix for situations when the stream too far behind. Note: the stream may start to lag.</string>
     <string name="sony_frame_drop_fix">Frame drop fix #1</string>
     <string name="sony_frame_drop_fix_desc">Fix lags on Sony TV and some other devices. Note: possible problems with audio synchronization.</string>
+    <string name="smooth_video_start">Smooth video start</string>
+    <string name="smooth_video_start_desc">Reduce the frozen frame at the start of playback by deferring the initial quality switch. Helpful on slow devices. Note: video may start at a lower quality for a bit longer.</string>
     <string name="audio_language">Audio language</string>
     <string name="old_home_look">Old look of the Home section</string>
     <string name="old_channel_look">Old look of the Channel page</string>

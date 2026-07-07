@@ -18,6 +18,7 @@ import com.google.android.exoplayer2.drm.ExoMediaDrm.ProvisionRequest;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.MediaDrmCallback;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.TransferListener;
@@ -80,6 +81,29 @@ public class ExoPlayerInitializer {
         mPlayer = player;
 
         return player;
+    }
+
+    /**
+     * Builds the adaptive video/audio track selection factory.
+     *
+     * <p>When "smooth video start" is enabled we tune the adaptive selection to avoid the
+     * frozen-frame stall in the first seconds of playback. By default ExoPlayer buffers ~10s of
+     * an initial (often low) rendition, then discards it to upshift, forcing a MediaCodec
+     * reconfigure right at the play head - on slow devices the picture freezes across that
+     * reconfigure while audio keeps playing. Requiring a longer buffer before an upshift, and
+     * disabling discard-based switching (retain window kept above the max buffer), defers the
+     * quality change past the startup window so it happens smoothly at the buffer tail instead.
+     */
+    public static AdaptiveTrackSelection.Factory createTrackSelectionFactory(Context context) {
+        if (PlayerTweaksData.instance(context).isSmoothVideoStartEnabled()) {
+            return new AdaptiveTrackSelection.Factory(
+                    /* minDurationForQualityIncreaseMs= */ 15_000,
+                    AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS,
+                    /* minDurationToRetainAfterDiscardMs= */ 60_000,
+                    AdaptiveTrackSelection.DEFAULT_BANDWIDTH_FRACTION);
+        }
+
+        return new AdaptiveTrackSelection.Factory();
     }
 
     private static AudioAttributes getAudioAttributes() {
