@@ -178,6 +178,18 @@ public class ViewUtil {
                 .skipMemoryCache(true); // ensure start animation from beginning
     }
 
+    /**
+     * Options for static card thumbnails. Unlike {@link #glideOptions()} (used for animated
+     * previews that must restart from the first frame), thumbnails keep the memory cache enabled
+     * so cards that scroll back into view aren't re-decoded on the UI thread - a source of jank
+     * in the in-player suggestions while a video is decoding. Disk cache crashes on old Android,
+     * so it's kept memory-only there.
+     */
+    public static RequestOptions thumbOptions() {
+        return new RequestOptions()
+                .diskCacheStrategy(VERSION.SDK_INT > 21 ? DiskCacheStrategy.ALL : DiskCacheStrategy.NONE);
+    }
+
     public static void enableTransparentDialog(Context context, View rootView) {
         if (context == null || rootView == null || VERSION.SDK_INT <= 19) {
             return;
