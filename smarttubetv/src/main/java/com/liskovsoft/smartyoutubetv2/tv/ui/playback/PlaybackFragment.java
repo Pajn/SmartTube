@@ -67,7 +67,7 @@ import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData;
 import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.smartyoutubetv2.tv.adapter.VideoGroupObjectAdapter;
-import com.liskovsoft.smartyoutubetv2.tv.presenter.CustomListRowPresenter;
+import com.liskovsoft.smartyoutubetv2.tv.presenter.SharedPoolListRowPresenter;
 import com.liskovsoft.smartyoutubetv2.tv.presenter.ShortsCardPresenter;
 import com.liskovsoft.smartyoutubetv2.tv.presenter.VideoCardPresenter;
 import com.liskovsoft.smartyoutubetv2.tv.presenter.base.OnItemLongPressedListener;
@@ -701,7 +701,7 @@ public class PlaybackFragment extends SeekModePlaybackFragment implements Playba
     }
 
     private void initPresenters() {
-        mRowPresenter = new CustomListRowPresenter() {
+        mRowPresenter = new SharedPoolListRowPresenter() {
             @Override
             protected void onBindRowViewHolder(RowPresenter.ViewHolder holder, Object item) {
                 super.onBindRowViewHolder(holder, item);
