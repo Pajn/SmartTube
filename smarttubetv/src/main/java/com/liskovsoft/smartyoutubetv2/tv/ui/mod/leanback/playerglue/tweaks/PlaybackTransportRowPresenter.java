@@ -105,6 +105,11 @@ public class PlaybackTransportRowPresenter extends PlaybackRowPresenter {
         long mTotalTimeInMs = Long.MIN_VALUE;
         long mCurrentTimeInMs = Long.MIN_VALUE;
         long mRemainingTimeInMs = Long.MIN_VALUE;
+        // MOD: labels show seconds precision; track rendered values to avoid
+        // a TextView relayout on every progress tick (each 100ms while playing)
+        long mRenderedTotalTimeInMs = Long.MIN_VALUE;
+        long mRenderedCurrentTimeInSec = Long.MIN_VALUE;
+        long mRenderedRemainingTimeInSec = Long.MIN_VALUE;
         long mSecondaryProgressInMs;
         final StringBuilder mTempBuilder = new StringBuilder();
         ControlBarPresenter.ViewHolder mControlsVh;
@@ -705,7 +710,7 @@ public class PlaybackTransportRowPresenter extends PlaybackRowPresenter {
         void setTotalTime(long totalTimeMs) {
             if (mTotalTimeInMs != totalTimeMs) {
                 mTotalTimeInMs = totalTimeMs;
-                onSetDurationLabel(totalTimeMs);
+                updateTotalTime();
             }
         }
 
@@ -733,7 +738,12 @@ public class PlaybackTransportRowPresenter extends PlaybackRowPresenter {
         void setCurrentPosition(long currentTimeMs) {
             if (currentTimeMs != mCurrentTimeInMs) {
                 mCurrentTimeInMs = currentTimeMs;
-                onSetCurrentPositionLabel(currentTimeMs);
+                // MOD: negative position renders as "--", non-negative as whole seconds
+                long currentTimeSec = currentTimeMs < 0 ? -1 : currentTimeMs / 1000;
+                if (currentTimeSec != mRenderedCurrentTimeInSec) {
+                    mRenderedCurrentTimeInSec = currentTimeSec;
+                    onSetCurrentPositionLabel(currentTimeMs);
+                }
             }
             if (!mInSeek) {
                 int progressRatio = 0;
@@ -759,7 +769,12 @@ public class PlaybackTransportRowPresenter extends PlaybackRowPresenter {
 
             if (mRemainingTimeInMs != remainingTimeMs) {
                 mRemainingTimeInMs = remainingTimeMs;
-                onSetEndingTimeLabel(remainingTimeMs);
+                // MOD: label shows seconds precision (speed corrected)
+                long remainingTimeSec = applySpeedCorrection(remainingTimeMs) / 1000;
+                if (remainingTimeSec != mRenderedRemainingTimeInSec) {
+                    mRenderedRemainingTimeInSec = remainingTimeSec;
+                    onSetEndingTimeLabel(remainingTimeMs);
+                }
             }
         }
 
@@ -822,7 +837,11 @@ public class PlaybackTransportRowPresenter extends PlaybackRowPresenter {
         }
 
         void updateTotalTime() {
-            onSetDurationLabel(mTotalTimeInMs);
+            // MOD: called on every progress tick; re-render only when the duration actually changed
+            if (mRenderedTotalTimeInMs != mTotalTimeInMs) {
+                mRenderedTotalTimeInMs = mTotalTimeInMs;
+                onSetDurationLabel(mTotalTimeInMs);
+            }
         }
 
         /**
