@@ -291,7 +291,11 @@ public class AppDialogFragment extends LeanbackSettingsFragment implements AppDi
     }
 
     public void onFinish() {
-        mPresenter.onFinish();
+        // A dying dialog may receive finish() multiple times (noHistory, onUserLeaveHint).
+        // Late calls must not clear the presenter data of a dialog that is being opened right now.
+        if (mPresenter.getView() == this) {
+            mPresenter.onFinish();
+        }
     }
     
     public static class AppPreferenceFragment extends LeanbackPreferenceFragment {

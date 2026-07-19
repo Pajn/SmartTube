@@ -19,7 +19,10 @@ import java.util.Set;
 public class AppDialogPresenter extends BasePresenter<AppDialogView> {
     @SuppressLint("StaticFieldLeak")
     private static AppDialogPresenter sInstance;
+    // Time cap only guards against a launch that never completes (self-heal)
+    private static final long SHOW_PENDING_TIMEOUT_MS = 5_000;
     private final Handler mHandler;
+    private long mShowPendingTimeMs;
     private final Runnable mCloseDialog = this::closeDialog;
     private final Set<Runnable> mOnStart = new HashSet<>();
     private final Set<Runnable> mOnFinish = new HashSet<>();
@@ -66,6 +69,7 @@ public class AppDialogPresenter extends BasePresenter<AppDialogView> {
 
     private void clear() {
         mTimeoutMs = 0;
+        mShowPendingTimeMs = 0;
         mHandler.removeCallbacks(mCloseDialog);
         resetData();
         mBackupCategories = null; // Mem leak fix (UiOption callback holds PlaybackActivity)
@@ -96,6 +100,7 @@ public class AppDialogPresenter extends BasePresenter<AppDialogView> {
 
     @Override
     public void onViewInitialized() {
+        mShowPendingTimeMs = 0;
         getView().show(mBackupCategories, mBackupTitle, mBackupIsExpandable, mBackupIsTransparent, mBackupIsOverlay, mBackupId);
         Utils.runMyCallbacks(mOnStart);
     }
@@ -124,9 +129,13 @@ public class AppDialogPresenter extends BasePresenter<AppDialogView> {
     public void showDialog(CharSequence dialogTitle, Runnable onFinish) {
         mTitle = dialogTitle;
         mOnFinish.add(onFinish);
-        
+
         backupData(); // overlapped dialog fix
         resetData(); // prepare to new call
+
+        // The view is created asynchronously. Mark the dialog as shown for the whole launch window
+        // or background dialogs (e.g. chapter notifications) will overwrite the backup data (empty dialog bug).
+        mShowPendingTimeMs = System.currentTimeMillis();
 
         if (getView() != null) {
             onViewInitialized();
@@ -159,8 +168,17 @@ public class AppDialogPresenter extends BasePresenter<AppDialogView> {
         // Also check that current dialog almost closed (new view start is pending from a menu item)
         // Hmm. Maybe current dialog is pending. Check that view is null.
         // Also check that we aren't started the same view (nested dialog).
-        return (getViewManager().isVisible(getView()) && getView() != null && !getView().isPaused()) ||
+        return isShowPending() ||
+                (getViewManager().isVisible(getView()) && getView() != null && !getView().isPaused()) ||
                 getViewManager().isViewPending(AppDialogView.class);
+    }
+
+    /**
+     * showDialog() has been called but the view hasn't picked up the data yet.<br/>
+     * NOTE: ViewManager's pending state expires after 1 sec which is too short on slow devices.
+     */
+    private boolean isShowPending() {
+        return mShowPendingTimeMs != 0 && System.currentTimeMillis() - mShowPendingTimeMs < SHOW_PENDING_TIMEOUT_MS;
     }
 
     public boolean isCommentsDialogShown() {
