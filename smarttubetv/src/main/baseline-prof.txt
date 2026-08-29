@@ -1,0 +1,26 @@
+# Baseline profile for cold-start and home browsing paths.
+#
+# Measured on a Shield TV (API 30): cold-start home scrolling was 4-6x jankier
+# than warm scrolling (12-24% janky frames vs 3-5%) because JIT compilation of
+# the UI/rendering paths (~2.3s in the JIT thread pool) competed with the
+# render pipeline on the 4 cores. With the same paths pre-compiled
+# (speed-profile), cold scrolling dropped to warm levels (5.8% janky, p90 9ms).
+# These rules cover the measured hot packages so ART can compile them ahead of
+# time via profileinstaller (bundled transitively) + background dexopt.
+#
+# Framework-side note: works on API 28+ (ignored gracefully below that).
+
+# App code: startup, browse flow, service/HTTP/JSON layers (all com.liskovsoft)
+HSPLcom/liskovsoft/**->**(**)**
+
+# Row/grid/card rendering (leanback + recyclerview)
+HSPLandroidx/leanback/widget/**->**(**)**
+HSPLandroidx/recyclerview/widget/**->**(**)**
+
+# Thumbnail decode/upload and network/JSON machinery used during startup load
+HSPLcom/bumptech/glide/**->**(**)**
+HSPLio/reactivex/**->**(**)**
+HSPLokhttp3/**->**(**)**
+HSPLokio/**->**(**)**
+HSPLkotlinx/coroutines/**->**(**)**
+HSPLkotlin/jvm/internal/**->**(**)**
