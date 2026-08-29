@@ -43,10 +43,11 @@ public class ViewUtil {
      */
     public static final boolean ROW_SELECT_EFFECT_ENABLED = false;
     /**
-     * Scroll continue threshold
+     * Scroll continue threshold. Prefetch the next page starting from half a row before the end,
+     * so the content is ready by the time the user reaches it.
      */
     public static final int GRID_SCROLL_CONTINUE_NUM = 10;
-    public static final int ROW_SCROLL_CONTINUE_NUM = 4;
+    public static final int ROW_SCROLL_CONTINUE_NUM = 8;
 
     /**
      * Checks whether text is truncated (e.g. has ... at the end)

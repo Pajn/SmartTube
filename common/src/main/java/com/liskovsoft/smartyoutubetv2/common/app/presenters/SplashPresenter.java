@@ -37,7 +37,10 @@ import java.util.List;
 
 public class SplashPresenter extends BasePresenter<SplashView> {
     private static final String TAG = SplashPresenter.class.getSimpleName();
-    private static final long APP_INIT_DELAY_MS = 10_000;
+    /**
+     * Long enough to not interfere with the user browsing the home page right after the app start.
+     */
+    private static final long APP_INIT_DELAY_MS = 60_000;
     @SuppressLint("StaticFieldLeak")
     private static SplashPresenter sInstance;
     private static boolean sRunOnce;

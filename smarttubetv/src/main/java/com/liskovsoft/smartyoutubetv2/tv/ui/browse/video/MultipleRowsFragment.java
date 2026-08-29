@@ -14,10 +14,12 @@ import androidx.leanback.widget.Presenter;
 import androidx.leanback.widget.Row;
 import androidx.leanback.widget.RowPresenter;
 import androidx.leanback.widget.RowPresenter.ViewHolder;
+import androidx.leanback.widget.VerticalGridView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.mylogger.Log;
+import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.interfaces.VideoGroupPresenter;
@@ -42,11 +44,24 @@ import java.util.Map;
 
 public abstract class MultipleRowsFragment extends RowsSupportFragment implements VideoSection {
     private static final String TAG = MultipleRowsFragment.class.getSimpleName();
+    /**
+     * How long after the last focus move new rows/cards may still be inserted into the grid.
+     * Mid-scroll insertions request a full layout pass of the grid - a jank source.
+     */
+    private static final long SELECTION_SETTLE_DELAY_MS = 400;
+    /**
+     * Don't re-request the same page continuation more often than this.
+     */
+    private static final long CONTINUE_REQUEST_DEDUP_MS = 5_000;
     private UriBackgroundManager mBackgroundManager;
     private ArrayObjectAdapter mRowsAdapter;
     private ListRowPresenter mRowPresenter;
     private Map<Integer, VideoGroupObjectAdapter> mVideoGroupAdapters;
     private final List<VideoGroup> mPendingUpdates = new ArrayList<>();
+    private final List<VideoGroup> mPendingScrollUpdates = new ArrayList<>();
+    private final Map<Integer, Long> mContinueRequestTimes = new HashMap<>();
+    private long mLastSelectionTimeMs;
+    private final Runnable mApplyPendingScrollUpdates = this::applyPendingScrollUpdates;
     private VideoGroupPresenter mMainPresenter;
     private VideoCardPresenter mCardPresenter;
     private ShortsCardPresenter mShortsPresenter;
@@ -247,6 +262,14 @@ public abstract class MultipleRowsFragment extends RowsSupportFragment implement
             return;
         }
 
+        // Inserting rows/cards while the user is still navigating requests extra layout passes
+        // of the grid. Wait until the selection settles instead.
+        if (isUserActive()) {
+            mPendingScrollUpdates.add(group);
+            schedulePendingScrollUpdatesFlush();
+            return;
+        }
+
         VideoGroupObjectAdapter existingAdapter = GridFragmentHelper.findRelatedAdapter(mVideoGroupAdapters, group, this::freeze);
 
         if (existingAdapter == null) {
@@ -281,6 +304,42 @@ public abstract class MultipleRowsFragment extends RowsSupportFragment implement
         setPosition(mSelectedRowIndex);
 
         // Maybe we don't need to load next group since all rows already fetched?
+    }
+
+    private boolean isUserActive() {
+        VerticalGridView grid = getVerticalGridView();
+        boolean isScrolling = grid != null && grid.getScrollState() != RecyclerView.SCROLL_STATE_IDLE;
+        boolean isSelecting = System.currentTimeMillis() - mLastSelectionTimeMs < SELECTION_SETTLE_DELAY_MS;
+
+        return isScrolling || isSelecting;
+    }
+
+    private void applyPendingScrollUpdates() {
+        if (mPendingScrollUpdates.isEmpty()) {
+            return;
+        }
+
+        // prevent modification within update method
+        List<VideoGroup> copyArray = new ArrayList<>(mPendingScrollUpdates);
+        mPendingScrollUpdates.clear();
+
+        for (VideoGroup group : copyArray) {
+            update(group);
+        }
+    }
+
+    private void schedulePendingScrollUpdatesFlush() {
+        Utils.removeCallbacks(mApplyPendingScrollUpdates);
+        Utils.postDelayed(mApplyPendingScrollUpdates, SELECTION_SETTLE_DELAY_MS);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        // Don't lose the content that arrived while the user was still navigating
+        applyPendingScrollUpdates();
+        Utils.removeCallbacks(mApplyPendingScrollUpdates);
     }
 
     @Override
@@ -353,6 +412,9 @@ public abstract class MultipleRowsFragment extends RowsSupportFragment implement
         @Override
         public void onItemSelected(Presenter.ViewHolder itemViewHolder, Object item,
                                    RowPresenter.ViewHolder rowViewHolder, Row row) {
+            mLastSelectionTimeMs = System.currentTimeMillis();
+            schedulePendingScrollUpdatesFlush();
+
             if (item instanceof Video) {
                 mBackgroundManager.setBackgroundFrom((Video) item);
 
@@ -369,11 +431,32 @@ public abstract class MultipleRowsFragment extends RowsSupportFragment implement
                 if (index != -1) {
                     int size = adapter.size();
                     if (index > (size - ViewUtil.ROW_SCROLL_CONTINUE_NUM)) {
-                        mMainPresenter.onScrollEnd((Video) adapter.get(size - 1));
+                        requestContinue(adapter, size);
                     }
                     break;
                 }
             }
+        }
+
+        private void requestContinue(VideoGroupObjectAdapter adapter, int size) {
+            Integer adapterKey = System.identityHashCode(adapter);
+            long currentTimeMs = System.currentTimeMillis();
+            Long lastRequestMs = mContinueRequestTimes.get(adapterKey);
+
+            if (lastRequestMs != null && currentTimeMs - lastRequestMs < CONTINUE_REQUEST_DEDUP_MS) {
+                return; // continuation is already loading
+            }
+
+            Video lastVideo = (Video) adapter.get(size - 1);
+            VideoGroup lastGroup = lastVideo != null ? lastVideo.getGroup() : null;
+
+            if (lastGroup == null || lastGroup.getMediaGroup() == null
+                    || lastGroup.getMediaGroup().getNextPageKey() == null) {
+                return; // no more pages in this row
+            }
+
+            mContinueRequestTimes.put(adapterKey, currentTimeMs);
+            mMainPresenter.onScrollEnd(lastVideo);
         }
     }
 }
