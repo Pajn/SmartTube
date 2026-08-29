@@ -17,6 +17,8 @@ public class ComplexImageCardView extends ImageCardView {
     private Handler mHandler;
     private boolean mIsCardTextAutoScrollEnabled;
     private boolean mIsBadgeEnabled;
+    private int mLastImageWidth;
+    private int mLastImageHeight;
 
     public ComplexImageCardView(Context context) {
         super(context);
@@ -195,9 +197,21 @@ public class ComplexImageCardView extends ImageCardView {
 
     /**
      * Sets the layout dimensions of the ImageView.
+     *
+     * Dimensions are constant across binds of the same presenter, but the call happens on every
+     * bind. Both ImageCardView and {@link ComplexImageView} apply them through
+     * {@code setLayoutParams}, which requests a full layout pass each time - an extra traversal
+     * for every card bound while scrolling. Skip when nothing changed.
      */
     @Override
     public void setMainImageDimensions(int width, int height) {
+        if (width == mLastImageWidth && height == mLastImageHeight) {
+            return;
+        }
+
+        mLastImageWidth = width;
+        mLastImageHeight = height;
+
         super.setMainImageDimensions(width, height);
         mComplexImageView.setMainImageDimensions(width, height);
     }
