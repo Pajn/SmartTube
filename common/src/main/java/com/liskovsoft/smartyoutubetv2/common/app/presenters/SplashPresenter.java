@@ -118,6 +118,7 @@ public class SplashPresenter extends BasePresenter<SplashView> {
         YouTubeServiceManager.instance().refreshCacheIfNeeded(); // warm up player engine
         enableHistoryIfNeeded();
         Utils.updateChannels(getContext());
+        Utils.cancelRemoteControlWork(getContext()); // cleanup of the removed work request
         GDriveBackupWorker.schedule(getContext());
         LocalDriveBackupWorker.schedule(getContext());
     }

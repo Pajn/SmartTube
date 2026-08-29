@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters;
 import com.liskovsoft.sharedutils.mylogger.Log;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.settings.BackupSettingsPresenter;
 import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;
+import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +36,7 @@ public class LocalDriveBackupWorker extends Worker {
 
     public static void schedule(Context context) {
         if (VERSION.SDK_INT >= 23 && GeneralData.instance(context).getLocalDriveBackupFreqDays() > 0) {
-            WorkManager workManager = WorkManager.getInstance(context);
+            WorkManager workManager = Utils.getWorkManager(context);
 
             // https://stackoverflow.com/questions/50943056/avoiding-duplicating-periodicworkrequest-from-workmanager
             workManager.enqueueUniquePeriodicWork(
@@ -60,7 +61,7 @@ public class LocalDriveBackupWorker extends Worker {
         if (VERSION.SDK_INT >= 23 && GeneralData.instance(context).getLocalDriveBackupFreqDays() > 0) {
             Log.d(TAG, "Unregistering worker job...");
 
-            WorkManager workManager = WorkManager.getInstance(context);
+            WorkManager workManager = Utils.getWorkManager(context);
             workManager.cancelUniqueWork(WORK_NAME);
         }
     }

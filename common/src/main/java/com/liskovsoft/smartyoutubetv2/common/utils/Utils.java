@@ -55,8 +55,7 @@ import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
-import androidx.work.ExistingPeriodicWorkPolicy;
-import androidx.work.PeriodicWorkRequest;
+import androidx.work.Configuration;
 import androidx.work.WorkManager;
 
 import com.jakewharton.processphoenix.ProcessPhoenix;
@@ -83,7 +82,6 @@ import com.liskovsoft.smartyoutubetv2.common.exoplayer.selector.TrackSelectorUti
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.selector.track.MediaTrack;
 import com.liskovsoft.smartyoutubetv2.common.misc.MotherActivity;
 import com.liskovsoft.smartyoutubetv2.common.misc.RemoteControlService;
-import com.liskovsoft.smartyoutubetv2.common.misc.RemoteControlWorker;
 import com.liskovsoft.smartyoutubetv2.common.misc.ScreensaverManager;
 import com.liskovsoft.smartyoutubetv2.common.prefs.BlockedChannelData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;
@@ -100,7 +98,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -132,7 +129,7 @@ public class Utils {
     private static final String REMOTE_CONTROL_RECEIVER_CLASS_NAME = "com.liskovsoft.smartyoutubetv2.common.misc.RemoteControlReceiver";
     private static final String UPDATE_CHANNELS_RECEIVER_CLASS_NAME = "com.liskovsoft.leanbackassistant.channels.UpdateChannelsReceiver";
     private static final String BOOTSTRAP_ACTIVITY_CLASS_NAME = "com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity";
-    private static final String TASK_ID = RemoteControlWorker.class.getSimpleName();
+    private static final String TASK_ID = "RemoteControlWorker"; // name of the removed WorkManager job
     private static final String TAG = Utils.class.getSimpleName();
     private static final String QR_CODE_URL_TEMPLATE = "https://api.qrserver.com/v1/create-qr-code/?data=%s";
     private static final int GLOBAL_VOLUME_TYPE = AudioManager.STREAM_MUSIC;
@@ -274,19 +271,26 @@ public class Utils {
         }, Context.BIND_AUTO_CREATE);
     }
 
-    public static void startRemoteControlWorkRequest(Context context) {
-        PeriodicWorkRequest workRequest =
-                new PeriodicWorkRequest.Builder(
-                        RemoteControlWorker.class, 30, TimeUnit.MINUTES
-                ).build();
+    /**
+     * WorkManager is not initialized at the app start anymore (initializer removed from the
+     * manifest to speed up the cold start). Initialize on first use instead.
+     */
+    public static WorkManager getWorkManager(Context context) {
+        try {
+            return WorkManager.getInstance(context);
+        } catch (IllegalStateException e) { // not initialized yet
+            WorkManager.initialize(context.getApplicationContext(), new Configuration.Builder().build());
+            return WorkManager.getInstance(context);
+        }
+    }
 
-        WorkManager
-                .getInstance(context)
-                .enqueueUniquePeriodicWork(
-                        TASK_ID,
-                        ExistingPeriodicWorkPolicy.KEEP,
-                        workRequest
-                );
+    /**
+     * The work request is no longer scheduled, but it stays persisted in WorkManager's database
+     * on devices from the older versions. Cancel it once, otherwise it keeps firing
+     * and failing every 30 minutes.
+     */
+    public static void cancelRemoteControlWork(Context context) {
+        getWorkManager(context).cancelUniqueWork(TASK_ID);
     }
 
     /**
