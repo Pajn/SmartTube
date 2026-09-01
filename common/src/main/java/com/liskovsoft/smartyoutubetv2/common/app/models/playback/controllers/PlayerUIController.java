@@ -61,9 +61,13 @@ public class PlayerUIController extends BasePlayerController {
     private boolean mIsMetadataLoaded;
     private long mOverlayHideTimeMs;
     private final Runnable mSuggestionsResetHandler = () -> {
-        if (getPlayer() == null) {
+        if (getPlayer() == null || getPlayer().isOverlayShown()) {
             return;
         }
+
+        // The timeout is only meant to prepare the controls row for the next time the overlay
+        // opens. If the user reopened it meanwhile, changing the row here steals focus from the
+        // suggestions they are already browsing.
         getPlayer().resetSuggestedPosition();
     };
     private final Runnable mUiAutoHideHandler = () -> {
