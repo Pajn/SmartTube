@@ -202,6 +202,16 @@ public class VideoGridFragment extends GridFragment implements VideoSection {
             return;
         }
 
+        // Subscriptions change frequently, so an old selection can be many pages behind.
+        // Only restore it when it is present in the initially loaded page; otherwise let
+        // the user browse without fetching continuations in the background.
+        if (mSelectedItem != null && mMainPresenter instanceof BrowsePresenter &&
+                ((BrowsePresenter) mMainPresenter).isSubscriptionsSection()) {
+            mSelectedItem = null;
+            LoadingManager.showLoading(getContext(), false);
+            return;
+        }
+
         // Item not found? Lookup item in next group.
         if (mMainPresenter.hasPendingActions()) {
             TickleManager.instance().runTask(mRestoreTask, 500);
