@@ -82,8 +82,13 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
     @Override
     public void onSeekEnd() {
         mBufferingDetector.reset();
-        // Needed to detect additional buffering (e.g. hanged clients).
-        // Don't worry this event will be canceled by subsequent onPlay() or onPause() if everything is ok.
+        // Stopping playback seeks to the duration. An ended player won't emit onPlay/onPause
+        // to cancel the watchdog, so don't mistake that seek for stalled playback.
+        if (getPlayer() == null || (getPlayer().getDurationMs() > 0
+                && getPlayer().getPositionMs() >= getPlayer().getDurationMs())) {
+            return;
+        }
+        // Keep detecting stalled clients when seeking within the video.
         mBufferingDetector.onStartBuffering();
     }
 
@@ -95,6 +100,11 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
     @Override
     public void onPause() {
         mBufferingDetector.onStopBuffering();
+    }
+
+    @Override
+    public void onPlayEnd() {
+        mBufferingDetector.reset();
     }
 
     @Override
